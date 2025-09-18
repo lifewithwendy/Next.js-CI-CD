@@ -3,9 +3,11 @@ name: Next.js CI/CD
 on:
   push:
     branches:
-      - main
+      - main          # only deploy on main
+      - feature/**    # run tests on feature branches
   pull_request:
-
+    branches:
+      - main          # run tests for PRs
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
