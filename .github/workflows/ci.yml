@@ -1,4 +1,4 @@
-name: Next.js CI/CD
+name: Next.js CI/CD with Docker
 
 on:
   push:
@@ -8,27 +8,23 @@ on:
   pull_request:
     branches:
       - main          # run tests for PRs
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
+      # 2. Build Docker image for dev/testing
+      - name: Build Docker image (dev)
+        run: docker build -f Dockerfile.dev -t nextjs-app:dev .
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run lint and tests
-        run: npm run lint && npm test
-
-      - name: Build project
-        run: npm run build
+      # 3. Run lint and tests inside container
+      - name: Run tests inside Docker
+        run: docker run --rm nextjs-app:dev sh -c "npm run lint && npm test"
 
   # deploy:
   #   needs: build-and-test
@@ -36,12 +32,33 @@ jobs:
   #   if: github.ref == 'refs/heads/main'
 
   #   steps:
+  #     # 1. Checkout repo
   #     - name: Checkout repository
   #       uses: actions/checkout@v3
 
-  #     - name: Deploy to Vercel
-  #       uses: amondnet/vercel-action@v25
+  #     # 2. Build production Docker image
+  #     - name: Build Docker image (prod)
+  #       run: docker build -f Dockerfile -t nextjs-app:prod .
+
+  #     # 3. Log in to Docker Hub
+  #     - name: Log in to Docker Hub
+  #       uses: docker/login-action@v2
   #       with:
-  #         vercel-token: ${{ secrets.VERCEL_TOKEN }}
-  #         vercel-org-id: ${{ secrets.ORG_ID }}
-  #         vercel-project-id: ${{ secrets.PROJECT_ID }}
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+
+  #     # 4. Push Docker image to registry
+  #     - name: Push Docker image
+  #       run: |
+  #         docker tag nextjs-app:prod ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
+  #         docker push ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
+
+  #     # 5. Deploy on remote server
+  #     - name: Deploy to server
+  #       run: |
+  #         ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "\
+  #           docker pull ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest && \
+  #           docker stop nextjs-app || true && \
+  #           docker rm nextjs-app || true && \
+  #           docker run -d --name nextjs-app -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest \
+  #         "
